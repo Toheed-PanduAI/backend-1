@@ -360,7 +360,7 @@ async def delete_video_task(video_task_id: str, session: SessionContainer = Depe
 async def get_config():
     try:
         prices = stripe.Price.list(
-            lookup_keys=['sample_basic', 'sample_premium']
+            lookup_keys=['sample_free', 'sample_basic', 'sample_premium']
         )
     except stripe.error.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
