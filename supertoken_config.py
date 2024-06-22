@@ -133,7 +133,7 @@ supertokens_config = SupertokensConfig(
 
 app_info = InputAppInfo(
     app_name="Supertokens",
-    api_domain="http://localhost:3001",
+    api_domain="https://backend-1-ovgi.onrender.com",
     website_domain="http://localhost:3000",
 )
 
