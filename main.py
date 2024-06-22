@@ -22,10 +22,14 @@ import supertoken_config
 import db
 import utils
 import speech_synthesis
-from models import Item, VoiceResponse, SubscriptionItem, CancelItem, UpdateItem, User, Permission, Payment, Plan, Subscription, VideoTask, TranscriptionResponse, ImageGenerationResponse, Message, ChatCompletionResponse
+from models import Item, VoiceResponse, PriceResponse, SubscriptionItem, CancelItem, UpdateItem, User, Permission, Payment, Plan, Subscription, VideoTask, TranscriptionResponse, ImageGenerationResponse, Message, ChatCompletionResponse, StabilityGenerateImageRequest, StabilityImageToVideoRequest, SegmindImageGenerateRequest, HeygenVideoGenerateRequest
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 from gmail_oauth import get_credentials
+import image_gen
+from pydantic import BaseModel
+
+# import google_ocr
 
 load_dotenv() 
 
@@ -350,8 +354,24 @@ async def delete_video_task(video_task_id: str, session: SessionContainer = Depe
     return VideoTask(**video_task)
 
 # Stripe API for payments
+
+
+@app.get("/price_config")
+async def get_config():
+    try:
+        prices = stripe.Price.list(
+            lookup_keys=['sample_basic', 'sample_premium']
+        )
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return PriceResponse(
+        publishableKey=os.getenv('STRIPE_PUBLIC_KEY'),
+        prices=prices.data,
+    )
+
 @app.post("/create_customer")
-async def create_customer(item: Item, response: Response):
+async def create_customer(item: Item , response: Response):
     try:
         # Create a new customer object
         customer = stripe.Customer.create(email=item.email)
@@ -367,7 +387,7 @@ async def create_customer(item: Item, response: Response):
 @app.post("/create_subscription")
 async def create_subscription(item: SubscriptionItem, request: Request):
 
-    customer_id = request.cookies.get('customer')
+    # customer_id = request.cookies.get('customer')
 
     # Extract the price ID from environment variables given the name
     # of the price passed from the front end.
@@ -378,7 +398,7 @@ async def create_subscription(item: SubscriptionItem, request: Request):
 
     try:
         subscription = stripe.Subscription.create(
-            customer=customer_id,
+            customer=item.customerId,
             items=[{
                 'price': price_id,
             }],
@@ -659,9 +679,9 @@ async def chat_completion(messages: List[Message], model: Optional[str] = "gpt-3
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-# MathPix API
+# MathPix APIs
 @app.post("/mathpix_process_image/")
-async def process_image(file: UploadFile = File(...)):
+async def mathpix_process_image(file: UploadFile = File(...)):
     try:
         # Read the uploaded file
         contents = await file.read()
@@ -693,7 +713,7 @@ async def process_image(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/mathpix_process_pdf/")
-async def process_pdf(request: str):
+async def mathpix_process_pdf(request: str):
     try:
         response = requests.post(
             "https://api.mathpix.com/v3/pdf",
@@ -715,7 +735,115 @@ async def process_pdf(request: str):
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Stability APIs
+@app.post("/stability_generate_image/")
+async def stability_process_image(data: StabilityGenerateImageRequest, api_key: str):
+    try:
+        image_content = image_gen.stability_generate_image(api_key, data)
+        return {"image": image_content}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/stability_image-to-video_start/")
+async def image_to_video(api_key: str, image_file: UploadFile = File(...), data: StabilityImageToVideoRequest = Depends()):
+    try:
+        video_id = image_gen.stability_image_to_video_start(api_key, image_file, data)
+        return {"video_id": video_id}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stability_fetch_video_result/")
+async def fetch_video_result(api_key: str, generation_id: str):
+    try:
+        result = image_gen.stability_fetch_video_result(api_key, generation_id)
+        return {"message": result}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Segmind APIs
+@app.post("/generate_segmind_image/")
+async def generate_segmind_image(request: SegmindImageGenerateRequest, api_key: str):
+    try:
+        response = image_gen.segmind_image_generate(api_key, request.data, request.model_name)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise HTTPException(status_code=response.status_code, detail=response.json())
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Heygen APIs
+@app.post("/generate_heygen_video/")
+async def generate_heygen_video(request: HeygenVideoGenerateRequest, api_key: str):
+    try:
+        response = image_gen.heygen_video_generate(api_key, request)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise HTTPException(status_code=response.status_code, detail=response.json())
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/get_heygen_video_status/")
+async def get_video_status(api_key: str, video_id: str):
+    try:
+        response = image_gen.get_heygen_video_status(api_key, video_id)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise HTTPException(status_code=response.status_code, detail=response.json())
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Google APIs
+# @app.post("/google_ocr_detect_text/")
+# async def detect_text_endpoint(file: UploadFile = File(...)):
+#     try:
+#         # Save the uploaded file temporarily
+#         file_path = f"/tmp/{file.filename}"
+#         with open(file_path, "wb") as buffer:
+#             buffer.write(file.file.read())
+
+#         # Call the detect_text function
+#         text_detection_results = google_ocr.detect_text(file_path)
+
+#         # Clean up the temporary file
+#         os.remove(file_path)
+
+#         return {"text_detections": text_detection_results}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+    
+
+# @app.post("/google_ocr_detect_handwriting/")
+# async def detect_handwriting_endpoint(file: UploadFile = File(...)):
+#     try:
+#         # Save the uploaded file temporarily
+#         file_path = f"/tmp/{file.filename}"
+#         with open(file_path, "wb") as buffer:
+#             buffer.write(file.file.read())
+
+#         # Call the detect_handwriting function
+#         handwriting_detection_results = google_ocr.detect_handwriting(file_path)
+
+#         # Clean up the temporary file
+#         os.remove(file_path)
+
+#         return {"handwriting_detections": handwriting_detection_results}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/gmail/messages/")
 async def list_gmail_messages(email: str):
