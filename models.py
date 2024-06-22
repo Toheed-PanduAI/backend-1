@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr, HttpUrl
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 class Permission(BaseModel):
@@ -50,11 +50,16 @@ class VideoTask(BaseModel):
     updated_at: Optional[datetime] = None
     video_url: Optional[HttpUrl] = None  # URL of the generated video
 
+class PriceResponse(BaseModel):
+    publishableKey: str
+    prices: list
+
 class Item(BaseModel):
     email: str
 
 class SubscriptionItem(BaseModel):
     priceId: str
+    customerId: str
 
 class CancelItem(BaseModel):
     subscriptionId: str
@@ -101,3 +106,23 @@ class StabilityImageToVideoRequest(BaseModel):
     cfg_scale: float
     motion_bucket_id: int
 
+class SegmindImageGenerateRequest(BaseModel):
+    data: dict
+    model_name: str = "face-to-sticker"
+
+class Dimension(BaseModel):
+    width: int
+    height: int
+
+class VideoInput(BaseModel):
+    character: Dict[str, Any]
+    voice: Optional[Dict[str, Any]] = None
+    background: Optional[Dict[str, Any]] = None
+
+class HeygenVideoGenerateRequest(BaseModel):
+    test: bool = True
+    caption: bool = False
+    dimension: Dimension = Field(default_factory=lambda: Dimension(width=1920, height=1080))
+    video_inputs: List[VideoInput]
+    title: Optional[str] = None
+    callback_id: Optional[str] = None
