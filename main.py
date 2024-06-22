@@ -867,7 +867,7 @@ async def list_gmail_messages(email: str):
 # CORS Middleware
 app = CORSMiddleware(
     app=app,
-    allow_origins=[supertoken_config.app_info.website_domain, "*"],
+    allow_origins=[supertoken_config.app_info.website_domain, "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["GET", "PUT", "POST", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type"] + get_all_cors_headers(),
