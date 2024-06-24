@@ -22,24 +22,22 @@ import supertoken_config
 import db
 import utils
 import speech_synthesis
-from models import Item, VoiceResponse, PriceResponse, SubscriptionItem, CancelItem, UpdateItem, User, Permission, Payment, Plan, Subscription, VideoTask, TranscriptionResponse, ImageGenerationResponse, Message, ChatCompletionResponse, StabilityGenerateImageRequest, StabilityImageToVideoRequest, SegmindImageGenerateRequest, HeygenVideoGenerateRequest
+from models import Item, VoiceResponse, SubscriptionItem, PriceResponse, CancelItem, UpdateItem, User, Permission, Payment, Plan, Subscription, VideoTask, TranscriptionResponse, ImageGenerationResponse, Message, ChatCompletionResponse
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
-from gmail_oauth import get_credentials
-import image_gen
-from pydantic import BaseModel
-
-# import google_ocr
+# from gmail_oauth import get_credentials
 
 load_dotenv() 
 
 # Setup Stripe python client library
-stripe.api_key =  os.getenv('STRIPE_SECRET_KEY')
-stripe_publishable_key = os.getenv('STRIPE_PUBLIC_KEY'),
+# stripe.api_key =  os.getenv('STRIPE_SECRET_KEY')
+# stripe_publishable_key = os.getenv('STRIPE_PUBLIC_KEY'),
+stripe.api_key =  "sk_test_51PQnqhP3fxV3o3WtOlLEclN5cK0FolvRFevDW0l9gkydYC89cR8KXV7CxS5051wbxk4eHjY11DU61G3XN1E9zu9s00YqAmKQXN"
+stripe_publishable_key = "pk_test_51PQnqhP3fxV3o3WtbvtjGmdVksLrTdMTKEpwS29TVLjz3En9cQK4XUbyO1X3UNlbVdBJgolhXidxaaQZiETR9bgE00fY8LeOYm",
 
 # MathPix API credentials
-mathpix_api_id = os.getenv("MATHPIX_APP_ID", "your_app_id")
-mathpix_api_key = os.getenv("MATHPIX_APP_KEY", "your_app_key")
+# mathpix_api_id = os.getenv("MATHPIX_APP_ID")
+# mathpix_api_key = os.getenv("MATHPIX_APP_KEY")
 
 # ElevenLabs URL
 ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/voices"
@@ -133,20 +131,23 @@ async def update_user(session: SessionContainer = Depends(
         "status": "OK",
     }
 
+
 # Users API
 @app.get("/users/{user_id}", response_model=User)
-async def read_user(user_id: str, session: SessionContainer = Depends(verify_session())):
-    user = await db.users_collection.find_one({"_id": ObjectId(user_id)})
+async def read_user(user_id: str):
+
+    user =  db.users_collection.find_one({"user_id": user_id})
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return User(**user)
 
 @app.post("/users/", response_model=User)
-async def create_user(user : dict = Depends(User), session: SessionContainer = Depends(verify_session())):
+async def create_user(user : dict = Depends(User)):
 
     if db.users_collection is None:
         raise HTTPException(status_code=500, detail="Database connection not initialized")
     
+    # # Check if email is already registered
     # user_exists = await db.users_collection.find_one({"email": user.email})
     # if user_exists:
     #     raise HTTPException(status_code=400, detail="Email already registered")
@@ -155,9 +156,13 @@ async def create_user(user : dict = Depends(User), session: SessionContainer = D
     user_data["password_hash"] = utils.hash_password(user.password_hash)
     user_data["created_at"] = datetime.now()
 
-    result =  db.users_collection.insert_one(user_data)
-    new_user =  db.users_collection.find_one({"_id": result.inserted_id})
-    return User(**new_user)
+    result = db.users_collection.insert_one(user_data)
+    new_user = db.users_collection.find_one({"_id": result.inserted_id})
+    if new_user:
+        return User(**new_user)
+    
+    raise HTTPException(status_code=500, detail="User creation failed")
+
 
 @app.put("/users/{user_id}", response_model=User)
 async def update_user(user_id: str, user : dict = Depends(User), session: SessionContainer = Depends(verify_session())):
@@ -201,6 +206,7 @@ async def update_permissions(
 
     updated_user = db.users_collection.find_one({"_id": ObjectId(user_id)})
     return User(**updated_user)
+
 # Payments API
 @app.get("/payments/{payment_id}", response_model=Payment)
 async def read_payment(payment_id: str, session: SessionContainer = Depends(verify_session())):
@@ -354,8 +360,6 @@ async def delete_video_task(video_task_id: str, session: SessionContainer = Depe
     return VideoTask(**video_task)
 
 # Stripe API for payments
-
-
 @app.get("/price_config")
 async def get_config():
     try:
@@ -366,12 +370,12 @@ async def get_config():
         raise HTTPException(status_code=400, detail=str(e))
 
     return PriceResponse(
-        publishableKey=os.getenv('STRIPE_PUBLIC_KEY'),
+        publishableKey=stripe_publishable_key,
         prices=prices.data,
     )
 
 @app.post("/create_customer")
-async def create_customer(item: Item , response: Response):
+async def create_customer(item: Item, response: Response):
     try:
         # Create a new customer object
         customer = stripe.Customer.create(email=item.email)
@@ -387,7 +391,7 @@ async def create_customer(item: Item , response: Response):
 @app.post("/create_subscription")
 async def create_subscription(item: SubscriptionItem, request: Request):
 
-    # customer_id = request.cookies.get('customer')
+    customer_id = request.cookies.get('customer')
 
     # Extract the price ID from environment variables given the name
     # of the price passed from the front end.
@@ -398,7 +402,7 @@ async def create_subscription(item: SubscriptionItem, request: Request):
 
     try:
         subscription = stripe.Subscription.create(
-            customer=item.customerId,
+            customer=item.customer_id,
             items=[{
                 'price': price_id,
             }],
@@ -679,9 +683,9 @@ async def chat_completion(messages: List[Message], model: Optional[str] = "gpt-3
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-# MathPix APIs
+# MathPix API
 @app.post("/mathpix_process_image/")
-async def mathpix_process_image(file: UploadFile = File(...)):
+async def process_image(file: UploadFile = File(...)):
     try:
         # Read the uploaded file
         contents = await file.read()
@@ -713,7 +717,7 @@ async def mathpix_process_image(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/mathpix_process_pdf/")
-async def mathpix_process_pdf(request: str):
+async def process_pdf(request: str):
     try:
         response = requests.post(
             "https://api.mathpix.com/v3/pdf",
@@ -735,139 +739,33 @@ async def mathpix_process_pdf(request: str):
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Stability APIs
-@app.post("/stability_generate_image/")
-async def stability_process_image(data: StabilityGenerateImageRequest, api_key: str):
-    try:
-        image_content = image_gen.stability_generate_image(api_key, data)
-        return {"image": image_content}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/stability_image-to-video_start/")
-async def image_to_video(api_key: str, image_file: UploadFile = File(...), data: StabilityImageToVideoRequest = Depends()):
-    try:
-        video_id = image_gen.stability_image_to_video_start(api_key, image_file, data)
-        return {"video_id": video_id}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/stability_fetch_video_result/")
-async def fetch_video_result(api_key: str, generation_id: str):
-    try:
-        result = image_gen.stability_fetch_video_result(api_key, generation_id)
-        return {"message": result}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Segmind APIs
-@app.post("/generate_segmind_image/")
-async def generate_segmind_image(request: SegmindImageGenerateRequest, api_key: str):
-    try:
-        response = image_gen.segmind_image_generate(api_key, request.data, request.model_name)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.json())
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Heygen APIs
-@app.post("/generate_heygen_video/")
-async def generate_heygen_video(request: HeygenVideoGenerateRequest, api_key: str):
-    try:
-        response = image_gen.heygen_video_generate(api_key, request)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.json())
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/get_heygen_video_status/")
-async def get_video_status(api_key: str, video_id: str):
-    try:
-        response = image_gen.get_heygen_video_status(api_key, video_id)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.json())
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Google APIs
-# @app.post("/google_ocr_detect_text/")
-# async def detect_text_endpoint(file: UploadFile = File(...)):
+# @app.get("/gmail/messages/")
+# async def list_gmail_messages(email: str):
+#     # if email not in users_db:
+#     #     raise HTTPException(status_code=400, detail="User not registered.")
+#     # token_file = users_db[email]
+#     token_file = email
 #     try:
-#         # Save the uploaded file temporarily
-#         file_path = f"/tmp/{file.filename}"
-#         with open(file_path, "wb") as buffer:
-#             buffer.write(file.file.read())
+#         creds = get_credentials(token_file)
+#         service = build('gmail', 'v1', credentials=creds)
+#         results = service.users().messages().list(userId='me').execute()
+#         messages = results.get('messages', [])
 
-#         # Call the detect_text function
-#         text_detection_results = google_ocr.detect_text(file_path)
-
-#         # Clean up the temporary file
-#         os.remove(file_path)
-
-#         return {"text_detections": text_detection_results}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-    
-
-# @app.post("/google_ocr_detect_handwriting/")
-# async def detect_handwriting_endpoint(file: UploadFile = File(...)):
-#     try:
-#         # Save the uploaded file temporarily
-#         file_path = f"/tmp/{file.filename}"
-#         with open(file_path, "wb") as buffer:
-#             buffer.write(file.file.read())
-
-#         # Call the detect_handwriting function
-#         handwriting_detection_results = google_ocr.detect_handwriting(file_path)
-
-#         # Clean up the temporary file
-#         os.remove(file_path)
-
-#         return {"handwriting_detections": handwriting_detection_results}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/gmail/messages/")
-async def list_gmail_messages(email: str):
-    # if email not in users_db:
-    #     raise HTTPException(status_code=400, detail="User not registered.")
-    # token_file = users_db[email]
-    token_file = email
-    try:
-        creds = get_credentials(token_file)
-        service = build('gmail', 'v1', credentials=creds)
-        results = service.users().messages().list(userId='me').execute()
-        messages = results.get('messages', [])
-
-        if not messages:
-            return {"message": "No messages found."}
+#         if not messages:
+#             return {"message": "No messages found."}
         
-        return {"messages": messages}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+#         return {"messages": messages}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
     
 # CORS Middleware
 app = CORSMiddleware(
     app=app,
-    allow_origins=[supertoken_config.app_info.website_domain, "http://localhost:3000"],
+      allow_origins=[
+        supertoken_config.app_info.website_domain, 
+        "https://app.pandu.ai"
+    ],
     allow_credentials=True,
     allow_methods=["GET", "PUT", "POST", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type"] + get_all_cors_headers(),
