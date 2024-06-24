@@ -5,20 +5,19 @@ from datetime import datetime
 class Permission(BaseModel):
     permission: str
     granted: bool
+    user_id: str
 
 class User(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")
     user_id: str
     username: str
     email: EmailStr
     password_hash: str
+    stripe_customer_id: str
     created_at: Optional[datetime] = None
     subscription_id: Optional[str] = None
     is_active: bool
-    permissions: List[Permission] = []
-
 class Payment(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")
+    payment_id: str
     user_id: str
     subscription_id: str
     amount: float
@@ -27,14 +26,14 @@ class Payment(BaseModel):
     payment_status: str  # e.g., "completed", "failed"
 
 class Plan(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")
+    plan_id: str
     name: str  # e.g., "basic", "premium"
     price: float
     description: str
     price_id: str
 
 class Subscription(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")
+    subscription_id: str
     user_id: str
     plan: str  # e.g., "basic", "premium"
     start_date: datetime
@@ -42,7 +41,7 @@ class Subscription(BaseModel):
     status: str  # e.g., "active", "inactive", "canceled"
 
 class VideoTask(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")
+    video_task_id: str
     user_id: str
     task_status: str  # e.g., "pending", "in_progress", "completed", "failed"
     task_details: Dict[str, str]  # Detailed task information
