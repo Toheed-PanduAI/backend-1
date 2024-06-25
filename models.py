@@ -9,13 +9,13 @@ class Permission(BaseModel):
 
 class User(BaseModel):
     user_id: str
-    username: str
+    username: Optional[str] = None
     email: EmailStr
-    password_hash: str
     stripe_customer_id: str
     created_at: Optional[datetime] = None
     subscription_id: Optional[str] = None
     is_active: bool
+
 class Payment(BaseModel):
     payment_id: str
     user_id: str
