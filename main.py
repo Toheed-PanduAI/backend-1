@@ -374,6 +374,37 @@ async def get_config():
         prices=prices.data,
     )
 
+@app.post('/stripe_checkout')
+async def checkout(request):
+    products = request.products
+    print(products)
+    
+    line_items = [
+        {
+            'price_data': {
+                'currency': 'inr',
+                'product_data': {
+                    'name': item.name,
+                },
+                'unit_amount': item.price * 100
+            },
+            'quantity': item.quantity
+        } 
+        for item in products
+    ]
+    print(line_items)
+    
+    session = await stripe.checkout.sessions.create(
+        payment_method_types=['card'],
+        line_items=line_items,
+        mode='payment',
+        success_url='http://localhost:3000/dashboard/billing/invoices',
+        cancel_url='http://localhost:3000/dashboard/billing/plans'
+    )
+    
+    return {"id": session.id}
+
+
 @app.post("/create_customer")
 async def create_customer(item: Item, response: Response):
     try:
