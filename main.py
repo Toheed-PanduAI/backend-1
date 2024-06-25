@@ -153,7 +153,6 @@ async def create_user(user : dict = Depends(User)):
     #     raise HTTPException(status_code=400, detail="Email already registered")
 
     user_data = user.dict()
-    user_data["password_hash"] = utils.hash_password(user.password_hash)
     user_data["created_at"] = datetime.now()
 
     result = db.users_collection.insert_one(user_data)
@@ -165,19 +164,19 @@ async def create_user(user : dict = Depends(User)):
 
 
 @app.put("/users/{user_id}", response_model=User)
-async def update_user(user_id: str, user : dict = Depends(User), session: SessionContainer = Depends(verify_session())):
+async def update_user(user_id: str, user : dict = Depends(User)):
     user_data = user.model_dump(exclude_unset=True)
     if "password" in user_data:
         user_data["password_hash"] = utils.hash_password(user_data["password"])
         del user_data["password"]
 
-    result = await db.users_collection.update_one(
-        {"_id": ObjectId(user_id)}, {"$set": user_data}
+    result =  db.users_collection.update_one(
+        {"user_id": user_id}, {"$set": user_data}
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
 
-    updated_user = await db.users_collection.find_one({"_id": ObjectId(user_id)})
+    updated_user =  db.users_collection.find_one({"user_id": user_id})
     return User(**updated_user)
 
 @app.delete("/users/{user_id}", response_model=User)
@@ -403,7 +402,6 @@ async def checkout(request):
     )
     
     return {"id": session.id}
-
 
 @app.post("/create_customer")
 async def create_customer(item: Item, response: Response):
