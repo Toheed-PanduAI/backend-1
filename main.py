@@ -431,7 +431,7 @@ async def create_subscription(item: SubscriptionItem, request: Request):
 
     try:
         subscription = stripe.Subscription.create(
-            customer=item.customer_id,
+            customer=item.customerId,
             items=[{
                 'price': price_id,
             }],
