@@ -387,7 +387,7 @@ async def checkout(request: Request):
         line_items = [
             {
                 "price_data": {
-                    "currency": "INR",
+                    "currency": "USD",
                     "product_data": {
                         "name": item["lookup_key"],
                     },
