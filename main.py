@@ -1,7 +1,7 @@
 import uvicorn
 import httpx
 from fastapi import FastAPI, Response, Request, HTTPException, Depends, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from io import BytesIO  
 from starlette.middleware.cors import CORSMiddleware
 import json
