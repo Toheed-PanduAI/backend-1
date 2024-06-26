@@ -376,7 +376,12 @@ async def get_config():
 @app.post("/stripe_checkout")
 async def checkout(request: Request):
     try:
+        # Log the incoming request
         products = await request.json()
+        logging.info(f"Received products: {products}")
+
+        if not isinstance(products, list):
+            raise HTTPException(status_code=400, detail="Invalid request format: expected a list of products")
 
         line_items = [
             {
@@ -392,7 +397,7 @@ async def checkout(request: Request):
             for item in products
         ]
 
-        session = await stripe.checkout.sessions.create(
+        session = stripe.checkout.sessions.create(
             payment_method_types=["card"],
             line_items=line_items,
             mode="payment",
@@ -402,7 +407,7 @@ async def checkout(request: Request):
 
         return JSONResponse(content={"id": session["id"]})
     except Exception as e:
-        print(e)
+        logging.error(f"Error occurred: {e}")
         raise HTTPException(status_code=500, detail="Something went wrong")
 
 
