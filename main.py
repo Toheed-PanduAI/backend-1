@@ -7,6 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 import json
 import stripe
 import os
+import logging
 import requests
 from datetime import datetime
 from typing import Optional, List
