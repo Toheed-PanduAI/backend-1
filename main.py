@@ -373,35 +373,38 @@ async def get_config():
         prices=prices.data,
     )
 
-@app.post('/stripe_checkout')
-async def checkout(request):
-    products = request.products
-    print(products)
-    
-    line_items = [
-        {
-            'price_data': {
-                'currency': 'inr',
-                'product_data': {
-                    'name': item.name,
+@app.post("/stripe_checkout")
+async def checkout(request: Request):
+    try:
+        products =  request.json()
+
+        line_items = [
+            {
+                "price_data": {
+                    "currency": "inr",
+                    "product_data": {
+                        "name": item["lookup_key"],
+                    },
+                    "unit_amount": item["unit_amount"] * 100,  # Ensure the price is in the smallest currency unit
                 },
-                'unit_amount': item.price * 100
-            },
-            'quantity': item.quantity
-        } 
-        for item in products
-    ]
-    print(line_items)
-    
-    session = await stripe.checkout.sessions.create(
-        payment_method_types=['card'],
-        line_items=line_items,
-        mode='payment',
-        success_url='http://localhost:3000/dashboard/billing/invoices',
-        cancel_url='http://localhost:3000/dashboard/billing/plans'
-    )
-    
-    return {"id": session.id}
+                "quantity": item.get("quantity", 1)  # Assuming each item has a quantity
+            }
+            for item in products
+        ]
+
+        session = stripe.checkout.sessions.create(
+            payment_method_types=["card"],
+            line_items=line_items,
+            mode="payment",
+            success_url="http://localhost:3000/dashboard/billing/invoices",
+            cancel_url="http://localhost:3000/dashboard/billing/plans",
+        )
+
+        return JSONResponse(content={"id": session["id"]})
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Something went wrong")
+
 
 @app.post("/create_customer")
 async def create_customer(item: Item, response: Response):
