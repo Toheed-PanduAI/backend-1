@@ -376,7 +376,7 @@ async def get_config():
 @app.post("/stripe_checkout")
 async def checkout(request: Request):
     try:
-        products =  request.json()
+        products = await request.json()
 
         line_items = [
             {
@@ -392,7 +392,7 @@ async def checkout(request: Request):
             for item in products
         ]
 
-        session = stripe.checkout.sessions.create(
+        session = await stripe.checkout.sessions.create(
             payment_method_types=["card"],
             line_items=line_items,
             mode="payment",
