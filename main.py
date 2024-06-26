@@ -398,7 +398,7 @@ async def checkout(request: Request):
             for item in products
         ]
 
-        session = stripe.checkout.sessions.create(
+        session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=line_items,
             mode="payment",
