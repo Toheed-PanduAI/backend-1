@@ -491,12 +491,12 @@ def create_invoice(invoice : dict = Depends(Invoice)):
     
     raise HTTPException(status_code=500, detail="Invoice creation failed")
 
-@app.get("/invoices/{invoice_id}", response_model=Invoice)
-def read_invoice(invoice_id: str):
-    invoice =  db.invoices_collection.find_one({"invoice_id": invoice_id})
-    if invoice is None:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    return Invoice(**invoice)
+@app.get("/invoices/{user_id}", response_model=List[Invoice])
+def read_invoices(user_id: str):
+    invoices = db.invoices_collection.find({"user_id": user_id})
+    if invoices.count() == 0:
+        raise HTTPException(status_code=404, detail="No invoices found for this user")
+    return [Invoice(**invoice) for invoice in invoices]
 
 @app.get("/invoice_preview")
 async def preview_invoice(request: Request, subscriptionId: Optional[str] = None, newPriceLookupKey: Optional[str] = None):
