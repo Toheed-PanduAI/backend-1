@@ -17,6 +17,21 @@ class User(BaseModel):
     price_id: Optional[str] = None
     is_active: bool
 
+class Invoice(BaseModel):
+    invoice_id: str
+    user_id: str
+    stripe_customer_id: str
+    created_at: Optional[datetime] = None
+    subscription_id: Optional[str] = None
+    amount_paid: str = None
+    amount_due: str = None
+    amount_remaining: str = None
+    currency: str = None
+    invoice_pdf: str = None
+    invoice_status: str = None
+    invoice_url: str = None
+    payment_intent_id: str = None
+
 class Payment(BaseModel):
     payment_id: str
     user_id: str
