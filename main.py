@@ -23,7 +23,7 @@ import supertoken_config
 import db
 import utils
 import speech_synthesis
-from models import Item, VoiceResponse, SubscriptionItem, PriceResponse, CancelItem, UpdateItem, User, Permission, Payment, Plan, Subscription, VideoTask, TranscriptionResponse, ImageGenerationResponse, Message, ChatCompletionResponse
+from models import Item, VoiceResponse, SubscriptionItem, PriceResponse, CancelItem, UpdateItem, User, Permission, Payment, Plan, Subscription, VideoTask, TranscriptionResponse, ImageGenerationResponse, Message, ChatCompletionResponse, Invoice
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 # from gmail_oauth import get_credentials
@@ -487,7 +487,7 @@ def create_invoice(invoice : dict = Depends(Invoice)):
     result = db.invoices_collection.insert_one(invoice_data)
     new_invoice = db.invoices_collection.find_one({"_id": result.inserted_id})
     if new_invoice:
-        return User(**new_invoice)
+        return Invoice(**new_invoice)
     
     raise HTTPException(status_code=500, detail="Invoice creation failed")
 
