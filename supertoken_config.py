@@ -14,15 +14,18 @@ from supertokens_python.recipe.userroles.asyncio import create_new_role_or_add_p
 from supertokens_python.recipe.thirdparty.interfaces import RecipeInterface as ThirdPartyRecipeInterface
 from supertokens_python.recipe.thirdparty.types import RawUserInfoFromProvider
 from supertokens_python.recipe import usermetadata
-from supertokens_python import init, InputAppInfo
 from supertokens_python.types import GeneralErrorResponse
 from supertokens_python.recipe import thirdparty
 from supertokens_python.recipe.thirdparty.interfaces import APIInterface, APIOptions, SignInUpPostOkResult, SignInUpPostNoEmailGivenByProviderResponse
-from typing import Optional, Union, Dict, Any
 from supertokens_python.recipe.thirdparty.provider import Provider, RedirectUriInfo
 from supertokens_python.recipe.userroles.asyncio import create_new_role_or_add_permissions
 from supertokens_python.recipe.userroles.asyncio import get_permissions_for_role
 from supertokens_python.recipe.userroles.asyncio import delete_role
+from supertokens_python import init, InputAppInfo
+from supertokens_python.recipe import emailverification
+from supertokens_python.ingredients.emaildelivery.types import EmailDeliveryConfig
+from supertokens_python.recipe.emailverification.types import EmailDeliveryOverrideInput, EmailTemplateVars
+
 
 # To create a new role
 async def create_role(role: str, permissions: List[str]):
