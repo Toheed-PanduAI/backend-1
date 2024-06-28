@@ -478,6 +478,26 @@ async def list_subscriptions(request: Request):
     except Exception as e:
         raise HTTPException(status_code=403, detail=str(e))
 
+@app.post("/invoices/", response_model=Invoice)
+def create_invoice(invoice : dict = Depends(Invoice)):
+
+    invoice_data = invoice.dict()
+    invoice_data["created_at"] = datetime.now()
+
+    result = db.invoices_collection.insert_one(invoice_data)
+    new_invoice = db.invoices_collection.find_one({"_id": result.inserted_id})
+    if new_invoice:
+        return User(**new_invoice)
+    
+    raise HTTPException(status_code=500, detail="Invoice creation failed")
+
+@app.get("/invoices/{invoice_id}", response_model=Invoice)
+def read_invoice(invoice_id: str):
+    invoice =  db.invoices_collection.find_one({"invoice_id": invoice_id})
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return Invoice(**invoice)
+
 @app.get("/invoice_preview")
 async def preview_invoice(request: Request, subscriptionId: Optional[str] = None, newPriceLookupKey: Optional[str] = None):
     # Simulating authenticated user. Lookup the logged in user in your
