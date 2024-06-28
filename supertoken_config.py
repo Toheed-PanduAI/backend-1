@@ -62,6 +62,21 @@ async def add_role_to_user_func(user_id: str, role: str):
         # User already had this role
         pass
 
+def custom_email_delivery(original_implementation: EmailDeliveryOverrideInput) -> EmailDeliveryOverrideInput:
+    original_send_email = original_implementation.send_email
+
+    async def send_email(template_vars: EmailTemplateVars, user_context: Dict[str, Any]) -> None:
+
+        # This is: `${websiteDomain}${websiteBasePath}/verify-email`
+        template_vars.email_verify_link = template_vars.email_verify_link.replace(
+            "http://localhost:3000/auth/verify-email", "http://localhost:3000/")
+
+        return await original_send_email(template_vars, user_context)
+
+    original_implementation.send_email = send_email
+    return original_implementation
+
+
 def override_emailpassword_functions(original_implementation: RecipeInterface) -> RecipeInterface:
     original_sign_up = original_implementation.sign_up
     
@@ -144,7 +159,10 @@ framework = "fastapi"
 recipe_list = [
     session.init(),
     usermetadata.init(),
-    emailverification.init(mode='REQUIRED'),
+    emailverification.init(
+        mode='REQUIRED',
+        email_delivery=EmailDeliveryConfig(override=custom_email_delivery)
+    ),
     emailpassword.init(
         override=emailpassword.InputOverrideConfig(
                 functions=override_emailpassword_functions
