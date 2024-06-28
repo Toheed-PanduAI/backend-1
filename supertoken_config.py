@@ -144,7 +144,7 @@ framework = "fastapi"
 recipe_list = [
     session.init(),
     usermetadata.init(),
-    emailverification.init(mode='OPTIONAL'),
+    emailverification.init(mode='REQUIRED'),
     emailpassword.init(
         override=emailpassword.InputOverrideConfig(
                 functions=override_emailpassword_functions
