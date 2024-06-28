@@ -11,4 +11,5 @@ payments_collection = db["payments"]
 plans_collection = db["plans"]
 subscriptions_collection = db["subscriptions"]
 video_tasks_collection = db["video_tasks"]
+invoices_collection = db["invoices"]
 
